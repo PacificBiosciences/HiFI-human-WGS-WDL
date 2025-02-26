@@ -1,0 +1,36 @@
+name: Create and upload artifacts
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        fetch-depth: 0
+        ref: ${{ github.ref }}
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - name: Install miniwdl
+      run: |
+        pip install miniwdl
+    - name: Run miniwdl commands
+      run: |
+        miniwdl zip -o hifi-human-wgs-singleton.zip workflows/singleton.wdl
+        miniwdl zip -o hifi-human-wgs-family.zip workflows/family.wdl
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: hifi-human-wgs-singleton
+        path: hifi-human-wgs-singleton.zip
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: hifi-human-wgs-family
+        path: hifi-human-wgs-family.zip
