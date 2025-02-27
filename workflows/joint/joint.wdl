@@ -2,9 +2,8 @@ version 1.0
 
 import "../wdl-common/wdl/structs.wdl"
 import "../wdl-common/wdl/tasks/glnexus.wdl" as Glnexus
-import "../wdl-common/wdl/tasks/pbsv.wdl" as Pbsv
+import "../wdl-common/wdl/tasks/sawfish.wdl" as Sawfish
 import "../wdl-common/wdl/tasks/bcftools.wdl" as Bcftools
-import "../wdl-common/wdl/workflows/get_pbsv_splits/get_pbsv_splits.wdl" as Pbsv_splits
 
 workflow joint {
   meta {
@@ -24,17 +23,20 @@ workflow joint {
     gvcf_indices: {
       name: "GVCF Indices"
     }
-    svsigs: {
-      name: "SV Signatures"
+    discover_tars: {
+      name: "Sawfish discover output tarballs"
+    }
+    aligned_bams: {
+      name: "Aligned BAMs"
+    }
+    aligned_bam_indices: {
+      name: "Aligned BAM Indices"
     }
     ref_map_file: {
       name: "Reference Map File"
     }
     glnexus_mem_gb: {
       name: "GLnexus Memory (GB)"
-    }
-    pbsv_call_mem_gb: {
-      name: "PBSV Call Memory (GB)"
     }
     default_runtime_attributes: {
       name: "Default Runtime Attribute Struct"
@@ -60,63 +62,42 @@ workflow joint {
     Array[File] gvcfs
     Array[File] gvcf_indices
 
-    Array[File] svsigs
+    Array[File] discover_tars
+    Array[File] aligned_bams
+    Array[File] aligned_bam_indices
 
     File ref_map_file
 
     Int? glnexus_mem_gb
-    Int? pbsv_call_mem_gb
 
     RuntimeAttributes default_runtime_attributes
   }
 
   Map[String, String] ref_map = read_map(ref_map_file)
 
-  call Pbsv_splits.get_pbsv_splits {
+  call Sawfish.sawfish_call {
     input:
-      pbsv_splits_file           = ref_map["pbsv_splits"], # !FileCoercion
-      default_runtime_attributes = default_runtime_attributes
+      discover_tars       = discover_tars,
+      aligned_bams        = aligned_bams,
+      aligned_bam_indices = aligned_bam_indices,
+      ref_fasta           = ref_map["fasta"],                                      # !FileCoercion
+      ref_index           = ref_map["fasta_index"],                                # !FileCoercion
+      out_prefix          = "~{family_id}.joint.~{ref_map['name']}.structural_variants",
+      runtime_attributes  = default_runtime_attributes
   }
 
-  scatter (shard_index in range(length(get_pbsv_splits.pbsv_splits))) {
-    Array[String] region_set = get_pbsv_splits.pbsv_splits[shard_index]
-
-    call Pbsv.pbsv_call {
-      input:
-        sample_id          = family_id + ".joint",
-        svsigs             = svsigs,
-        sample_count       = length(sample_ids),
-        ref_fasta          = ref_map["fasta"],       # !FileCoercion
-        ref_index          = ref_map["fasta_index"], # !FileCoercion
-        ref_name           = ref_map["name"],
-        shard_index        = shard_index,
-        regions            = region_set,
-        mem_gb             = pbsv_call_mem_gb,
-        runtime_attributes = default_runtime_attributes
-    }
-  }
-
-    # concatenate pbsv vcfs
-  call Bcftools.concat_pbsv_vcf {
-    input:
-      vcfs               = pbsv_call.vcf,
-      vcf_indices        = pbsv_call.vcf_index,
-      out_prefix         = "~{family_id}.joint.~{ref_map['name']}.structural_variants",
-      runtime_attributes = default_runtime_attributes
-  }
-
-  String sv_vcf_basename = basename(concat_pbsv_vcf.concatenated_vcf, ".vcf.gz")
+  String sv_vcf_basename = basename(sawfish_call.vcf, ".vcf.gz")
 
   scatter (sample_id in sample_ids) {
     String split_sv_vcf_name = "~{sample_id}.~{sv_vcf_basename}.vcf.gz"
     String split_sv_vcf_index_name = "~{sample_id}.~{sv_vcf_basename}.vcf.gz.tbi"
   }
 
-  call Bcftools.split_vcf_by_sample as split_pbsv {
+  call Bcftools.split_vcf_by_sample as split_sawfish {
     input:
       sample_ids            = sample_ids,
-      vcf                   = concat_pbsv_vcf.concatenated_vcf,
-      vcf_index             = concat_pbsv_vcf.concatenated_vcf_index,
+      vcf                   = sawfish_call.vcf,
+      vcf_index             = sawfish_call.vcf_index,
       split_vcf_names       = split_sv_vcf_name,
       split_vcf_index_names = split_sv_vcf_index_name,
       runtime_attributes    = default_runtime_attributes
@@ -150,8 +131,8 @@ workflow joint {
   }
 
   output {
-    Array[File] split_joint_structural_variant_vcfs        = split_pbsv.split_vcfs
-    Array[File] split_joint_structural_variant_vcf_indices = split_pbsv.split_vcf_indices
+    Array[File] split_joint_structural_variant_vcfs        = split_sawfish.split_vcfs
+    Array[File] split_joint_structural_variant_vcf_indices = split_sawfish.split_vcf_indices
     Array[File] split_joint_small_variant_vcfs             = split_glnexus.split_vcfs
     Array[File] split_joint_small_variant_vcf_indices      = split_glnexus.split_vcf_indices
   }

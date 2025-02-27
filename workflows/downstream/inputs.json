@@ -8,7 +8,6 @@
   "downstream.trgt_vcf_index": "File",
   "downstream.aligned_bam": "File",
   "downstream.aligned_bam_index": "File",
-  "downstream.pharmcat_version": "String",
   "downstream.pharmcat_min_coverage": "Int",
   "downstream.ref_map_file": "File",
   "downstream.default_runtime_attributes": {

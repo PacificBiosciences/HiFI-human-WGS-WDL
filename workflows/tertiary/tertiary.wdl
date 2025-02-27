@@ -1,6 +1,7 @@
 version 1.0
 
 import "../humanwgs_structs.wdl"
+import "../wdl-common/wdl/tasks/write_phrank.wdl" as Write_phrank
 import "../wdl-common/wdl/tasks/utilities.wdl" as Utilities
 
 workflow tertiary_analysis {
@@ -9,11 +10,17 @@ workflow tertiary_analysis {
   }
 
   parameter_meta {
-    pedigree: {
-      name: "PLINK pedigree (PED) format"
+    sample_metadata: {
+      name: "PLINK pedigree (PED) formatted lines."
     }
-    phrank_lookup: {
-      name: "Gene symbol -> Phrank phenotype rank score lookup table"
+    phenotypes: {
+      name: "Comma-delimited list of HPO codes for phenotypes"
+    }
+    is_trio_kid: {
+      name: "Boolean array indicating if the sample is a child with both parents defined"
+    }
+    is_duo_kid: {
+      name: "Boolean array indicating if the sample is a child with only one parent defined"
     }
     small_variant_vcf: {
       name: "Small variant VCF"
@@ -66,8 +73,11 @@ workflow tertiary_analysis {
   }
 
   input {
-    File pedigree
-    File phrank_lookup
+    Array[Array[String]] sample_metadata
+    String phenotypes
+
+    Array[Boolean] is_trio_kid  # !UnusedDeclaration
+    Array[Boolean] is_duo_kid   # !UnusedDeclaration
 
     File small_variant_vcf
     File small_variant_vcf_index
@@ -82,6 +92,12 @@ workflow tertiary_analysis {
 
   Map[String, String] ref_map      = read_map(ref_map_file)
   Map[String, String] tertiary_map = read_map(tertiary_map_file)
+
+  call Write_phrank.write_phrank {
+    input:
+      phenotypes         = phenotypes,
+      runtime_attributes = default_runtime_attributes
+  }
 
   call Utilities.split_string as split_gnotate_files {
     input:
@@ -114,8 +130,8 @@ workflow tertiary_analysis {
     input:
       vcf                = small_variant_vcf,
       vcf_index          = small_variant_vcf_index,
-      pedigree           = pedigree,
-      phrank_lookup      = phrank_lookup,
+      sample_metadata    = sample_metadata,
+      phrank_lookup      = write_phrank.phrank_lookup,
       reference          = ref_map["fasta"],               # !FileCoercion
       reference_index    = ref_map["fasta_index"],         # !FileCoercion
       gff                = tertiary_map["ensembl_gff"],    # !FileCoercion
@@ -148,7 +164,7 @@ workflow tertiary_analysis {
   call svpack_filter_annotated {
     input:
       sv_vcf                 = sv_vcf,
-      pedigree               = pedigree,
+      sample_metadata        = sample_metadata,
       population_vcfs        = split_sv_vcfs.array,         # !FileCoercion
       population_vcf_indices = split_sv_vcf_indices.array,  # !FileCoercion
       gff                    = tertiary_map["ensembl_gff"], # !FileCoercion
@@ -158,10 +174,10 @@ workflow tertiary_analysis {
   call slivar_svpack_tsv {
     input:
       filtered_vcf       = svpack_filter_annotated.svpack_vcf,
-      pedigree           = pedigree,
+      sample_metadata    = sample_metadata,
       lof_lookup         = tertiary_map["lof_lookup"],         # !FileCoercion
       clinvar_lookup     = tertiary_map["clinvar_lookup"],     # !FileCoercion
-      phrank_lookup      = phrank_lookup,
+      phrank_lookup      = write_phrank.phrank_lookup,
       runtime_attributes = default_runtime_attributes
   }
 
@@ -191,8 +207,8 @@ task slivar_small_variant {
     vcf_index: {
       name: "Small variant VCF index"
     }
-    pedigree: {
-      name: "PLINK pedigree (PED) format"
+    sample_metadata: {
+      name: "PLINK pedigree (PED) formatted lines."
     }
     phrank_lookup: {
       name: "Gene symbol -> Phrank phenotype rank score lookup table"
@@ -257,7 +273,7 @@ task slivar_small_variant {
     File vcf
     File vcf_index
 
-    File pedigree
+    Array[Array[String]] sample_metadata
     File phrank_lookup
 
     File reference
@@ -356,7 +372,7 @@ task slivar_small_variant {
       --sample-expr '~{sep=" && " sample_expr}' \
       ~{sep=" " prefix("--gnotate ", gnotate_files)} \
       --vcf ~{vcf_basename}.norm.bcf \
-      --ped ~{pedigree} \
+      --ped ~{write_tsv(sample_metadata)} \
     | bcftools csq \
       --local-csq \
       --samples - \
@@ -376,7 +392,7 @@ task slivar_small_variant {
       --skip ~{sep=',' skip_list} \
       --vcf ~{vcf_basename}.norm.slivar.vcf.gz \
       --sample-field comphet_side \
-      --ped ~{pedigree} \
+      --ped ~{write_tsv(sample_metadata)} \
       --allow-non-trios \
     | add_comphet_phase.py \
     | bcftools view \
@@ -395,7 +411,7 @@ task slivar_small_variant {
       --gene-description ~{lof_lookup} \
       --gene-description ~{clinvar_lookup} \
       --gene-description ~{phrank_lookup} \
-      --ped ~{pedigree} \
+      --ped ~{write_tsv(sample_metadata)} \
       --out /dev/stdout \
       ~{vcf_basename}.norm.slivar.vcf.gz \
     | sed '1 s/gene_description_1/lof/;s/gene_description_2/clinvar/;s/gene_description_3/phrank/;' \
@@ -409,7 +425,7 @@ task slivar_small_variant {
       --gene-description ~{lof_lookup} \
       --gene-description ~{clinvar_lookup} \
       --gene-description ~{phrank_lookup} \
-      --ped ~{pedigree} \
+      --ped ~{write_tsv(sample_metadata)} \
       --out /dev/stdout \
       ~{vcf_basename}.norm.slivar.compound_hets.vcf.gz \
     | sed '1 s/gene_description_1/lof/;s/gene_description_2/clinvar/;s/gene_description_3/phrank/;' \
@@ -444,8 +460,8 @@ task svpack_filter_annotated {
   }
 
   parameter_meta {
-    pedigree: {
-      name: "PLINK pedigree (PED) format"
+    sample_metadata: {
+      name: "PLINK pedigree (PED) formatted lines."
     }
     sv_vcf: {
       name: "Structural variant VCF"
@@ -472,7 +488,7 @@ task svpack_filter_annotated {
 
   input {
     File sv_vcf
-    File pedigree
+    Array[Array[String]] sample_metadata
 
     Array[File] population_vcfs
     Array[File] population_vcf_indices
@@ -492,7 +508,7 @@ task svpack_filter_annotated {
     echo "svpack version:"
     cat /opt/svpack/.git/HEAD
 
-    affected=$(awk -F'\t' '$6 ~ /2/ {{ print $2 }}' ~{pedigree} | paste -sd',')  # TODO: potentially replace awk
+    affected=$(awk -F'\t' '$6 ~ /2/ {{ print $2 }}' ~{write_tsv(sample_metadata)} | paste -sd',')  # TODO: potentially replace awk
 
     svpack \
       filter \
@@ -546,8 +562,8 @@ task slivar_svpack_tsv {
     filtered_vcf : {
       name: "Filtered and annotated structural variant VCF"
     }
-    pedigree: {
-      name: "PLINK pedigree (PED) format"
+    sample_metadata: {
+      name: "PLINK pedigree (PED) formatted lines."
     }
     lof_lookup: {
       name: "Gene symbol -> LoF score lookup table"
@@ -569,7 +585,7 @@ task slivar_svpack_tsv {
   input {
     File filtered_vcf
 
-    File pedigree
+    Array[Array[String]] sample_metadata
     File lof_lookup
     File clinvar_lookup
     File phrank_lookup
@@ -580,8 +596,6 @@ task slivar_svpack_tsv {
   Array[String] info_fields = [
     'SVTYPE',
     'SVLEN',
-    'SVANN',
-    'CIPOS',
     'MATEID',
     'END'
   ]
@@ -606,7 +620,7 @@ task slivar_svpack_tsv {
       --gene-description ~{lof_lookup} \
       --gene-description ~{clinvar_lookup} \
       --gene-description ~{phrank_lookup} \
-      --ped ~{pedigree} \
+      --ped ~{write_tsv(sample_metadata)} \
       --out /dev/stdout \
       ~{filtered_vcf} \
     | sed '1 s/gene_description_1/lof/;s/gene_description_2/clinvar/;s/gene_description_3/phrank/;' \

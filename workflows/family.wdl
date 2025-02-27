@@ -7,7 +7,6 @@ import "joint/joint.wdl" as Joint
 import "downstream/downstream.wdl" as Downstream
 import "wdl-common/wdl/tasks/bcftools.wdl" as Bcftools
 import "wdl-common/wdl/tasks/trgt.wdl" as Trgt
-import "wdl-common/wdl/tasks/write_ped_phrank.wdl" as Write_ped_phrank
 import "tertiary/tertiary.wdl" as TertiaryAnalysis
 import "wdl-common/wdl/tasks/utilities.wdl" as Utilities
 
@@ -24,15 +23,6 @@ workflow humanwgs_family {
     ref_map_file: {
       name: "TSV containing reference genome file paths; must match backend"
     }
-    deepvariant_version: {
-      name: "DeepVariant version"
-    }
-    custom_deepvariant_model_tar: {
-      name: "Custom DeepVariant model tarball"
-    }
-    pharmcat_version: {
-      name: "PharmCAT version"
-    }
     pharmcat_min_coverage: {
       name: "Minimum coverage for PharmCAT"
     }
@@ -44,9 +34,6 @@ workflow humanwgs_family {
     }
     glnexus_mem_gb: {
       name: "Override GLnexus memory request (GB)"
-    }
-    pbsv_call_mem_gb: {
-      name: "Override PBSV call memory request (GB)"
     }
     gpu: {
       name: "Use GPU when possible"
@@ -77,20 +64,12 @@ workflow humanwgs_family {
 
     File ref_map_file
 
-    # These options are only intended for testing purposes.
-    # There is no guarantee that the pipeline will work with
-    # other version of DeepVariant or with custom models.
-    String deepvariant_version = "1.6.1"
-    File? custom_deepvariant_model_tar
-
-    String pharmcat_version = "2.15.4"
     Int pharmcat_min_coverage = 10
 
     String phenotypes = "HP:0000001"
     File? tertiary_map_file
 
     Int? glnexus_mem_gb
-    Int? pbsv_call_mem_gb
 
     Boolean gpu = false
 
@@ -119,20 +98,38 @@ workflow humanwgs_family {
 
   Boolean single_sample = length(family.samples) == 1
 
+  Map[String, String] pedigree_sex = {
+    "MALE": "1",
+    "FEMALE": "2",
+    "": "."
+  }
+
   scatter (sample in family.samples) {
     String sample_id = sample.sample_id
+    Boolean is_trio_kid = defined(sample.father_id) && defined(sample.mother_id)  # !UnusedDeclaration
+    Boolean is_duo_kid = defined(sample.father_id) != defined(sample.mother_id)   # !UnusedDeclaration
+
     call Upstream.upstream {
       input:
         sample_id                    = sample.sample_id,
         sex                          = sample.sex,
         hifi_reads                   = sample.hifi_reads,
         ref_map_file                 = ref_map_file,
-        deepvariant_version          = deepvariant_version,
-        custom_deepvariant_model_tar = custom_deepvariant_model_tar,
         single_sample                = single_sample,
         gpu                          = gpu,
         default_runtime_attributes   = default_runtime_attributes
     }
+
+    # write sample metadata similar to pedigree format
+    # family_id, sample_id, father_id, mother_id, sex, affected
+    Array[String] sample_metadata = [
+      family.family_id,
+      sample.sample_id,
+      select_first([sample.father_id, "."]),
+      select_first([sample.mother_id, "."]),
+      pedigree_sex[upstream.inferred_sex],
+      if sample.affected then "2" else "1"
+    ]
   }
 
   if (!single_sample) {
@@ -140,12 +137,13 @@ workflow humanwgs_family {
       input:
         family_id                  = family.family_id,
         sample_ids                 = sample_id,
-        gvcfs                      = upstream.small_variant_gvcf,
-        gvcf_indices               = upstream.small_variant_gvcf_index,
-        svsigs                     = flatten(upstream.svsigs),
+        gvcfs                      = upstream.small_variant_vcf,
+        gvcf_indices               = upstream.small_variant_vcf_index,
+        discover_tars              = upstream.discover_tar,
+        aligned_bams               = upstream.out_bam,
+        aligned_bam_indices        = upstream.out_bam_index,
         ref_map_file               = ref_map_file,
         glnexus_mem_gb             = glnexus_mem_gb,
-        pbsv_call_mem_gb           = pbsv_call_mem_gb,
         default_runtime_attributes = default_runtime_attributes
     }
   }
@@ -162,7 +160,6 @@ workflow humanwgs_family {
         trgt_vcf_index             = upstream.trgt_vcf_index[sample_index],
         aligned_bam                = upstream.out_bam[sample_index],
         aligned_bam_index          = upstream.out_bam_index[sample_index],
-        pharmcat_version           = pharmcat_version,
         pharmcat_min_coverage      = pharmcat_min_coverage,
         ref_map_file               = ref_map_file,
         default_runtime_attributes = default_runtime_attributes
@@ -193,6 +190,7 @@ workflow humanwgs_family {
     'sv_DEL_count': downstream.stat_sv_DEL_count,
     'sv_INS_count': downstream.stat_sv_INS_count,
     'sv_INV_count': downstream.stat_sv_INV_count,
+    'sv_INVBND_count': downstream.stat_sv_INVBND_count,
     'sv_BND_count': downstream.stat_sv_BND_count,
     'cnv_DUP_count': upstream.stat_cnv_DUP_count,
     'cnv_DEL_count': upstream.stat_cnv_DEL_count,
@@ -238,23 +236,12 @@ workflow humanwgs_family {
   }
 
   if (defined(tertiary_map_file)) {
-    scatter (sample in family.samples) {
-      Array[File] hifi_reads = sample.hifi_reads
-    }
-
-    call Write_ped_phrank.write_ped_phrank {
-      input:
-        id                 = family.family_id,
-        family             = family,
-        phenotypes         = phenotypes,
-        disk_size          = ceil(size(flatten(hifi_reads), "GB")) + 10,
-        runtime_attributes = default_runtime_attributes
-    }
-
     call TertiaryAnalysis.tertiary_analysis {
       input:
-        pedigree                   = write_ped_phrank.pedigree,
-        phrank_lookup              = write_ped_phrank.phrank_lookup,
+        sample_metadata            = sample_metadata,
+        phenotypes                 = phenotypes,
+        is_trio_kid                = is_trio_kid,
+        is_duo_kid                 = is_duo_kid,
         small_variant_vcf          = select_first([merge_small_variant_vcfs.merged_vcf, downstream.phased_small_variant_vcf[0]]),
         small_variant_vcf_index    = select_first([merge_small_variant_vcfs.merged_vcf_index, downstream.phased_small_variant_vcf_index[0]]),
         sv_vcf                     = select_first([merge_sv_vcfs.merged_vcf, downstream.phased_sv_vcf[0]]),
@@ -322,11 +309,12 @@ workflow humanwgs_family {
     Array[File] phased_sv_vcf_index = downstream.phased_sv_vcf_index
 
     # sv stats
-    Array[String] stat_sv_DUP_count = downstream.stat_sv_DUP_count
-    Array[String] stat_sv_DEL_count = downstream.stat_sv_DEL_count
-    Array[String] stat_sv_INS_count = downstream.stat_sv_INS_count
-    Array[String] stat_sv_INV_count = downstream.stat_sv_INV_count
-    Array[String] stat_sv_BND_count = downstream.stat_sv_BND_count
+    Array[String] stat_sv_DUP_count    = downstream.stat_sv_DUP_count
+    Array[String] stat_sv_DEL_count    = downstream.stat_sv_DEL_count
+    Array[String] stat_sv_INS_count    = downstream.stat_sv_INS_count
+    Array[String] stat_sv_INV_count    = downstream.stat_sv_INV_count
+    Array[String] stat_sv_INVBND_count = downstream.stat_sv_INVBND_count
+    Array[String] stat_sv_BND_count    = downstream.stat_sv_BND_count
 
     # small variant outputs
     Array[File] phased_small_variant_vcf       = downstream.phased_small_variant_vcf
@@ -387,7 +375,6 @@ workflow humanwgs_family {
     File? joint_trgt_vcf_index           = trgt_merge.merged_vcf_index
 
     # tertiary analysis outputs
-    File? pedigree                                      = write_ped_phrank.pedigree
     File? tertiary_small_variant_filtered_vcf           = tertiary_analysis.small_variant_filtered_vcf
     File? tertiary_small_variant_filtered_vcf_index     = tertiary_analysis.small_variant_filtered_vcf_index
     File? tertiary_small_variant_filtered_tsv           = tertiary_analysis.small_variant_filtered_tsv
@@ -400,6 +387,6 @@ workflow humanwgs_family {
 
     # workflow metadata
     String workflow_name    = "humanwgs_family"
-    String workflow_version = "v2.1.1" + if defined(debug_version) then "~{"-" + debug_version}" else ""
+    String workflow_version = "v3.0.0-alpha1" + if defined(debug_version) then "~{"-" + debug_version}" else ""
   }
 }

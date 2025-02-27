@@ -2,11 +2,11 @@ slivar_js	gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/slivar/slivar-functions.v0.2
 ensembl_gff	gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/GRCh38/ensembl.GRCh38.101.reformatted.gff3.gz
 lof_lookup	gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/slivar/lof_lookup.v2.1.1.txt
 clinvar_lookup	gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/slivar/clinvar_gene_desc.20240624T165443.txt
-slivar_gnotate_files	gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/GRCh38/slivar_gnotate/gnomad.hg38.v4.1.custom.v1.zip,gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/GRCh38/slivar_gnotate/CoLoRSdb.GRCh38.v1.1.0.deepvariant.glnexus.zip
+slivar_gnotate_files	gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/GRCh38/slivar_gnotate/gnomad.hg38.v4.1.custom.v1.zip,gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/GRCh38/slivar_gnotate/CoLoRSdb.GRCh38.v1.2.0.deepvariant.glnexus.zip
 slivar_gnotate_prefixes	gnomad,colors
 slivar_max_af	0.03
 slivar_max_nhomalt	4
 slivar_max_ac	4
 slivar_min_gq	5
-svpack_pop_vcfs	gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/gnomad.v4.1.sv.sites.pass.vcf.gz,gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/CoLoRSdb.GRCh38.v1.1.0.pbsv.jasmine.vcf.gz
-svpack_pop_vcf_indices	gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/gnomad.v4.1.sv.sites.pass.vcf.gz.tbi,gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/CoLoRSdb.GRCh38.v1.1.0.pbsv.jasmine.vcf.gz.tbi
+svpack_pop_vcfs	gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/gnomad.v4.1.sv.sites.pass.vcf.gz,gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/CoLoRSdb.GRCh38.v1.2.0.pbsv.jasmine.vcf.gz
+svpack_pop_vcf_indices	gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/gnomad.v4.1.sv.sites.pass.vcf.gz.tbi,gs://pacbio-wdl/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/CoLoRSdb.GRCh38.v1.2.0.pbsv.jasmine.vcf.gz.tbi

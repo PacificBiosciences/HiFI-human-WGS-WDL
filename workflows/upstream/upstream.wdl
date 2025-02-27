@@ -3,15 +3,13 @@ version 1.0
 import "../wdl-common/wdl/structs.wdl"
 import "../wdl-common/wdl/tasks/pbmm2.wdl" as Pbmm2
 import "../wdl-common/wdl/tasks/merge_bam_stats.wdl" as MergeBamStats
-import "../wdl-common/wdl/tasks/pbsv.wdl" as Pbsv
-import "../wdl-common/wdl/tasks/bcftools.wdl" as Bcftools
+import "../wdl-common/wdl/tasks/sawfish.wdl" as Sawfish
 import "../wdl-common/wdl/workflows/deepvariant/deepvariant.wdl" as DeepVariant
 import "../wdl-common/wdl/tasks/samtools.wdl" as Samtools
 import "../wdl-common/wdl/tasks/mosdepth.wdl" as Mosdepth
 import "../wdl-common/wdl/tasks/trgt.wdl" as Trgt
 import "../wdl-common/wdl/tasks/paraphase.wdl" as Paraphase
 import "../wdl-common/wdl/tasks/hificnv.wdl" as Hificnv
-import "../wdl-common/wdl/workflows/get_pbsv_splits/get_pbsv_splits.wdl" as Pbsv_splits
 
 workflow upstream {
   meta {
@@ -32,12 +30,6 @@ workflow upstream {
     ref_map_file: {
       name: "TSV containing reference genome information"
     }
-    deepvariant_version: {
-      name: "DeepVariant version"
-    }
-    custom_deepvariant_model_tar: {
-      name: "Custom DeepVariant model tarball"
-    }
     single_sample: {
       name: "Single sample workflow"
     }
@@ -56,9 +48,6 @@ workflow upstream {
 
     File ref_map_file
 
-    String deepvariant_version
-    File? custom_deepvariant_model_tar
-
     Boolean single_sample = false
 
     Boolean gpu
@@ -76,13 +65,6 @@ workflow upstream {
         ref_fasta          = ref_map["fasta"],       # !FileCoercion
         ref_index          = ref_map["fasta_index"], # !FileCoercion
         ref_name           = ref_map["name"],
-        runtime_attributes = default_runtime_attributes
-    }
-    call Pbsv.pbsv_discover {
-      input:
-        aligned_bam        = pbmm2_align.aligned_bam,
-        aligned_bam_index  = pbmm2_align.aligned_bam_index,
-        trf_bed            = ref_map["pbsv_tandem_repeat_bed"], # !FileCoercion
         runtime_attributes = default_runtime_attributes
     }
   }
@@ -126,10 +108,21 @@ workflow upstream {
       ref_fasta                    = ref_map["fasta"],             # !FileCoercion
       ref_index                    = ref_map["fasta_index"],       # !FileCoercion
       ref_name                     = ref_map["name"],
-      deepvariant_version          = deepvariant_version,
-      custom_deepvariant_model_tar = custom_deepvariant_model_tar,
       gpu                          = gpu,
       default_runtime_attributes   = default_runtime_attributes
+  }
+
+  call Sawfish.sawfish_discover {
+    input:
+      sex                 = select_first([sex, mosdepth.inferred_sex]),
+      aligned_bam         = aligned_bam_data,
+      aligned_bam_index   = aligned_bam_index,
+      ref_fasta           = ref_map["fasta"],                           # !FileCoercion
+      ref_index           = ref_map["fasta_index"],                     # !FileCoercion
+      out_prefix          = "~{sample_id}.~{ref_map['name']}",
+      expected_male_bed   = ref_map["hificnv_expected_bed_male"],       # !FileCoercion
+      expected_female_bed = ref_map["hificnv_expected_bed_female"],     # !FileCoercion
+      runtime_attributes  = default_runtime_attributes
   }
 
   call Trgt.trgt {
@@ -183,35 +176,15 @@ workflow upstream {
   }
 
   if (single_sample) {
-    call Pbsv_splits.get_pbsv_splits {
-      input:
-        pbsv_splits_file           = ref_map["pbsv_splits"], # !FileCoercion
-        default_runtime_attributes = default_runtime_attributes
-    }
-
-    scatter (shard_index in range(length(get_pbsv_splits.pbsv_splits))) {
-      Array[String] region_set = get_pbsv_splits.pbsv_splits[shard_index]
-
-      call Pbsv.pbsv_call {
-        input:
-          sample_id          = sample_id,
-          svsigs             = pbsv_discover.svsig,
-          ref_fasta          = ref_map["fasta"],       # !FileCoercion
-          ref_index          = ref_map["fasta_index"], # !FileCoercion
-          ref_name           = ref_map["name"],
-          shard_index        = shard_index,
-          regions            = region_set,
-          runtime_attributes = default_runtime_attributes
-      }
-    }
-
-    # concatenate pbsv vcfs
-    call Bcftools.concat_pbsv_vcf {
-      input:
-        vcfs               = pbsv_call.vcf,
-        vcf_indices        = pbsv_call.vcf_index,
-        out_prefix         = "~{sample_id}.~{ref_map['name']}.structural_variants",
-        runtime_attributes = default_runtime_attributes
+    call Sawfish.sawfish_call {
+      input: 
+        discover_tars       = [sawfish_discover.discover_tar],
+        aligned_bams        = [aligned_bam_data],
+        aligned_bam_indices = [aligned_bam_index],
+        ref_fasta           = ref_map["fasta"],                                      # !FileCoercion
+        ref_index           = ref_map["fasta_index"],                                # !FileCoercion
+        out_prefix          = "~{sample_id}.~{ref_map['name']}.structural_variants",
+        runtime_attributes  = default_runtime_attributes
     }
   }
 
@@ -238,13 +211,12 @@ workflow upstream {
     String inferred_sex                     = mosdepth.inferred_sex
     String stat_mean_depth                  = mosdepth.stat_mean_depth
 
-    # per movie sv signatures
-    # if we've already called variants, no need to keep these
-    Array[File] svsigs = if single_sample then [] else pbsv_discover.svsig
+    # per sample sv signatures
+    File discover_tar = sawfish_discover.discover_tar
 
-    # pbsv outputs for single sample
-    File? sv_vcf       = concat_pbsv_vcf.concatenated_vcf
-    File? sv_vcf_index = concat_pbsv_vcf.concatenated_vcf_index
+    # sawfish outputs for single sample
+    File? sv_vcf       = sawfish_call.vcf
+    File? sv_vcf_index = sawfish_call.vcf_index
 
     # small variant outputs
     File small_variant_vcf        = deepvariant.vcf

@@ -3,10 +3,11 @@
   "joint.sample_ids": "Array[String]",
   "joint.gvcfs": "Array[File]",
   "joint.gvcf_indices": "Array[File]",
-  "joint.svsigs": "Array[File]",
+  "joint.discover_tars": "Array[File]",
+  "joint.aligned_bams": "Array[File]",
+  "joint.aligned_bam_indices": "Array[File]",
   "joint.ref_map_file": "File",
   "joint.glnexus_mem_gb": "Int? (optional)",
-  "joint.pbsv_call_mem_gb": "Int? (optional)",
   "joint.default_runtime_attributes": {
     "max_retries": "Int",
     "container_registry": "String",

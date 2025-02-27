@@ -2,11 +2,11 @@ slivar_js	https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-r
 ensembl_gff	https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/GRCh38/ensembl.GRCh38.101.reformatted.gff3.gz
 lof_lookup	https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/slivar/lof_lookup.v2.1.1.txt
 clinvar_lookup	https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/slivar/clinvar_gene_desc.20240624T165443.txt
-slivar_gnotate_files	https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/GRCh38/slivar_gnotate/gnomad.hg38.v4.1.custom.v1.zip,https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/GRCh38/slivar_gnotate/CoLoRSdb.GRCh38.v1.1.0.deepvariant.glnexus.zip
+slivar_gnotate_files	https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/GRCh38/slivar_gnotate/gnomad.hg38.v4.1.custom.v1.zip,https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/GRCh38/slivar_gnotate/CoLoRSdb.GRCh38.v1.2.0.deepvariant.glnexus.zip
 slivar_gnotate_prefixes	gnomad,colors
 slivar_max_af	0.03
 slivar_max_nhomalt	4
 slivar_max_ac	4
 slivar_min_gq	5
-svpack_pop_vcfs	https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/gnomad.v4.1.sv.sites.pass.vcf.gz,https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/CoLoRSdb.GRCh38.v1.1.0.pbsv.jasmine.vcf.gz
-svpack_pop_vcf_indices	https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/gnomad.v4.1.sv.sites.pass.vcf.gz.tbi,https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/CoLoRSdb.GRCh38.v1.1.0.pbsv.jasmine.vcf.gz.tbi
+svpack_pop_vcfs	https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/gnomad.v4.1.sv.sites.pass.vcf.gz,https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/CoLoRSdb.GRCh38.v1.2.0.pbsv.jasmine.vcf.gz
+svpack_pop_vcf_indices	https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/gnomad.v4.1.sv.sites.pass.vcf.gz.tbi,https://datasetpbrarediseases.blob.core.windows.net/dataset/hifi-wdl-resources-v2.0.0/GRCh38/sv_pop_vcfs/CoLoRSdb.GRCh38.v1.2.0.pbsv.jasmine.vcf.gz.tbi

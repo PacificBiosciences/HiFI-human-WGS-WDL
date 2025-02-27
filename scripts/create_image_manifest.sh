@@ -10,9 +10,9 @@ grep '@sha' -h -r workflows/ \
 | sort --unique \
 > ./image_manifest.txt
 
-deepvariant_version=$(grep -m1 'String deepvariant_version' workflows/singleton.wdl | tr -s ' ' | cut -f5 -d' ' | sed 's/"//g')
+deepvariant_version=1.8.0
 echo "google/deepvariant:${deepvariant_version}" >> ./image_manifest.txt
 echo "google/deepvariant:${deepvariant_version}-gpu" >> ./image_manifest.txt
 
-pharmcat_version=$(grep -m1 'String pharmcat_version' workflows/singleton.wdl | tr -s ' ' | cut -f5 -d' ' | sed 's/"//g')
+pharmcat_version=2.15.4
 echo "pgkb/pharmcat:${pharmcat_version}" >> ./image_manifest.txt

@@ -3,8 +3,6 @@
   "upstream.sex": "String? (optional)",
   "upstream.hifi_reads": "Array[File]",
   "upstream.ref_map_file": "File",
-  "upstream.deepvariant_version": "String",
-  "upstream.custom_deepvariant_model_tar": "File? (optional)",
   "upstream.single_sample": "Boolean (optional, default = false)",
   "upstream.gpu": "Boolean",
   "upstream.default_runtime_attributes": {

@@ -25,7 +25,7 @@ flowchart TD
   subgraph "`**Upstream of Phasing**`"
     subgraph "per-movie"
       ubam[/"HiFi uBAM"/] --> pbmm2_align["pbmm2 align"]
-      pbmm2_align --> pbsv_discover["PBSV discover"]
+      pbmm2_align --> sawfish_discover["Sawfish discover"]
     end
     pbmm2_align --> merge_read_stats["merge read statistics"]
     pbmm2_align --> samtools_merge["samtools merge"]
@@ -35,7 +35,7 @@ flowchart TD
     samtools_merge --> trgt["TRGT"]
     samtools_merge --> trgt_dropouts["TR coverage dropouts"]
     samtools_merge --> deepvariant["DeepVariant"]
-    pbsv_discover --> pbsv_call["PBSV call"]
+    sawfish_discover --> sawfish_call["Sawfish call"]
   end
   subgraph "`**Phasing and Downstream**`"
     deepvariant --> hiphase["HiPhase"]
@@ -129,6 +129,7 @@ flowchart TD
 | String | stat_sv_DEL_count | Structural variant DEL count | (PASS variants) |
 | String | stat_sv_INS_count | Structural variant INS count | (PASS variants) |
 | String | stat_sv_INV_count | Structural variant INV count | (PASS variants) |
+| String | stat_sv_INVBND_count | Structural variant INVBND count | (PASS variants) |
 | String | stat_sv_BND_count | Structural variant BND count | (PASS variants) |
 | File | bcftools_roh_out | ROH calling |  `bcftools roh` |
 | File | bcftools_roh_bed | Generated from above, without filtering |  |
