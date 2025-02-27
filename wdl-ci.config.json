@@ -1326,7 +1326,7 @@
       "tasks": {
         "pbmm2_align_wgs": {
           "key": "pbmm2_align_wgs",
-          "digest": "lfkj5u6d6hakjxcmp3q6nzpwuz3jz5l3",
+          "digest": "4pbv52jhlacjaylj5tgqzp43a77it5xh",
           "tests": [
             {
               "inputs": {
@@ -1522,7 +1522,7 @@
       "tasks": {
         "pbsv_discover": {
           "key": "pbsv_discover",
-          "digest": "mcdiubcggjbwaweaciocgrnypvqn5tnb",
+          "digest": "whyivzym5tmmbwnlrne6l26w6rj3pyzj",
           "tests": [
             {
               "inputs": {
@@ -1546,7 +1546,7 @@
         },
         "pbsv_call": {
           "key": "pbsv_call",
-          "digest": "2rhytrhz52jofq7lv42akixzl55wa3lk",
+          "digest": "whqgkxlukuxpojvpg6tz6rzqxmtw3lcd",
           "tests": [
             {
               "inputs": {
